@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <HediffDef>
+    <defName>OrganTrauma_ManipulationPenalty</defName>
+    <label>organ trauma</label>
+    <description>Tracks damage to tiered internal organs and converts it into a Manipulation penalty. Its label updates to show the current total penalty; it only appears in your health list while that penalty is above zero.</description>
+    <hediffClass>OrganTraumaMod.Hediff_OrganTraumaManipulation</hediffClass>
+    <defaultLabelColor>(0.9, 0.5, 0.5)</defaultLabelColor>
+    <isBad>true</isBad>
+    <tendable>false</tendable>
+    <initialSeverity>1</initialSeverity>
+    <maxSeverity>1</maxSeverity>
+    <scenarioCanAdd>false</scenarioCanAdd>
+    <stages>
+      <li>
+        <!-- Real capMods are computed dynamically in C# (Hediff_OrganTraumaManipulation.CapMods),
+             not from this stage - this exists only because RimWorld expects at least one stage. -->
+      </li>
+    </stages>
+  </HediffDef>
+
+</Defs>
