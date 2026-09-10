@@ -9,11 +9,6 @@
     <defaultLabelColor>(0.9, 0.4, 0.4)</defaultLabelColor>
     <isBad>true</isBad>
     <maxSeverity>0.9</maxSeverity>
-    <comps>
-      <li Class="HediffCompProperties_SeverityPerDay">
-        <severityPerDay>0</severityPerDay>
-      </li>
-    </comps>
     <stages>
       <li>
         <minSeverity>0.5</minSeverity>
