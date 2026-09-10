@@ -3,26 +3,23 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
-namespace OrganTraumaMod
-{
-    /// <summary>
-    /// RimWorld auto-instantiates one instance of every non-abstract
-    /// GameComponent subclass on new/loaded games - no XML registration
+@@ -6,23 +8,44 @@ namespace OrganTraumaMod
+/// <summary>
+/// RimWorld auto-instantiates one instance of every non-abstract
+/// GameComponent subclass on new/loaded games - no XML registration
+    /// needed. We use that to make sure every humanlike pawn - both ones
+    /// already in your save and any created afterward - is carrying our
+    /// tracking hediff.
     /// needed. This one periodically scans every humanlike pawn, works out
     /// their current total Manipulation penalty from tiered organ damage,
     /// and adds/updates/removes a plain vanilla Hediff (OrganTrauma_ManipulationPenalty)
     /// to reflect it - purely via Severity and the def's own XML stages, no
     /// custom Hediff subclass or overrides required.
-    ///
-    /// It also separately tracks brain-specific damage and applies an
-    /// additional Consciousness penalty (OrganTrauma_BrainConsciousnessPenalty)
-    /// once brain HP drops to 50% or below, stepping by 10% per 10% of brain
-    /// HP lost, capping at a 90% penalty at 10% brain HP.
-    /// </summary>
-    public class GameComponent_OrganTraumaBackfill : GameComponent
-    {
-        private int ticksSinceLastScan = 0;
-        private const int ScanIntervalTicks = 250; // roughly every 4 seconds
+/// </summary>
+public class GameComponent_OrganTraumaBackfill : GameComponent
+{
+private int ticksSinceLastScan = 0;
+private const int ScanIntervalTicks = 250; // roughly every 4 seconds
 
         // BodyPartDef.defName -> tier
         private static readonly Dictionary<string, int> OrganTiers = new Dictionary<string, int>
@@ -43,55 +40,47 @@ namespace OrganTraumaMod
             { 3, new float[] { 0.02f, 0.05f, 0.10f, 0.20f } },
         };
 
-        // Brain-specific consciousness penalty kicks in once fractionLost >= 0.5
-        // (brain at 50% HP), then steps by 10% per 10% HP lost, capped at 0.9.
-        private const float BrainConsciousnessThreshold = 0.5f;
-        private const float BrainConsciousnessMaxPenalty = 0.9f;
+public GameComponent_OrganTraumaBackfill(Game game)
+{
+}
 
-        public GameComponent_OrganTraumaBackfill(Game game)
-        {
-        }
-
-        public override void FinalizeInit()
-        {
-            base.FinalizeInit();
+public override void FinalizeInit()
+{
+base.FinalizeInit();
+            ScanAndAddHediff();
             ScanAndUpdateAll();
-        }
+}
 
-        public override void GameComponentTick()
-        {
-            base.GameComponentTick();
-
-            ticksSinceLastScan++;
-            if (ticksSinceLastScan >= ScanIntervalTicks)
-            {
-                ticksSinceLastScan = 0;
+public override void GameComponentTick()
+@@ -33,31 +56,90 @@ public override void GameComponentTick()
+if (ticksSinceLastScan >= ScanIntervalTicks)
+{
+ticksSinceLastScan = 0;
+                ScanAndAddHediff();
                 ScanAndUpdateAll();
-            }
-        }
+}
+}
 
+        private static void ScanAndAddHediff()
         private static void ScanAndUpdateAll()
-        {
-            foreach (Pawn pawn in PawnsFinder.AllMapsAndWorld_Alive)
-            {
+{
+foreach (Pawn pawn in PawnsFinder.AllMapsAndWorld_Alive)
+{
+                AddHediffIfMissing(pawn);
                 UpdatePawn(pawn);
-            }
-        }
+}
+}
 
+        private static void AddHediffIfMissing(Pawn pawn)
         private static void UpdatePawn(Pawn pawn)
-        {
-            if (pawn?.health?.hediffSet == null)
-                return;
+{
+if (pawn?.health?.hediffSet == null)
+return;
 
-            if (pawn.RaceProps == null || !pawn.RaceProps.Humanlike)
-                return;
+if (pawn.RaceProps == null || !pawn.RaceProps.Humanlike)
+return;
 
-            UpdateManipulationPenalty(pawn);
-            UpdateBrainConsciousnessPenalty(pawn);
-        }
-
-        private static void UpdateManipulationPenalty(Pawn pawn)
-        {
+            if (pawn.health.hediffSet.HasHediff(OrganTraumaDefOf.OrganTrauma_ManipulationPenalty))
             float totalPenalty = CalculateTotalPenalty(pawn);
             // Cap at 100% - Manipulation can't usefully go below 0 anyway.
             totalPenalty = Math.Min(totalPenalty, 1f);
@@ -104,7 +93,7 @@ namespace OrganTraumaMod
             {
                 if (existing != null)
                     pawn.health.RemoveHediff(existing);
-                return;
+return;
             }
 
             if (existing == null)
@@ -116,64 +105,6 @@ namespace OrganTraumaMod
             else if (Math.Abs(existing.Severity - rounded) > 0.001f)
             {
                 existing.Severity = rounded;
-            }
-        }
-
-        private static void UpdateBrainConsciousnessPenalty(Pawn pawn)
-        {
-            if (pawn.RaceProps?.body == null)
-                return;
-
-            BodyPartRecord brain = null;
-            foreach (BodyPartRecord part in pawn.RaceProps.body.AllParts)
-            {
-                if (part.def.defName == "Brain")
-                {
-                    brain = part;
-                    break;
-                }
-            }
-
-            Hediff existing = pawn.health.hediffSet.GetFirstHediffOfDef(OrganTraumaDefOf.OrganTrauma_BrainConsciousnessPenalty);
-
-            if (brain == null)
-            {
-                if (existing != null)
-                    pawn.health.RemoveHediff(existing);
-                return;
-            }
-
-            float maxHealth = brain.def.GetMaxHealth(pawn);
-            if (maxHealth <= 0f)
-            {
-                if (existing != null)
-                    pawn.health.RemoveHediff(existing);
-                return;
-            }
-
-            float currentHealth = pawn.health.hediffSet.GetPartHealth(brain);
-            float fractionLost = 1f - (currentHealth / maxHealth);
-
-            if (fractionLost < BrainConsciousnessThreshold)
-            {
-                if (existing != null)
-                    pawn.health.RemoveHediff(existing);
-                return;
-            }
-
-            // Step down in 10% increments from the 50% threshold, capped at 90%.
-            float steppedFraction = (float)Math.Floor(fractionLost * 10f) / 10f;
-            float severity = Math.Min(steppedFraction, BrainConsciousnessMaxPenalty);
-
-            if (existing == null)
-            {
-                existing = HediffMaker.MakeHediff(OrganTraumaDefOf.OrganTrauma_BrainConsciousnessPenalty, pawn);
-                existing.Severity = severity;
-                pawn.health.AddHediff(existing);
-            }
-            else if (Math.Abs(existing.Severity - severity) > 0.001f)
-            {
-                existing.Severity = severity;
             }
         }
 
@@ -209,11 +140,13 @@ namespace OrganTraumaMod
             if (!TierPenalties.TryGetValue(tier, out penalties))
                 return 0f;
 
+            Hediff hediff = HediffMaker.MakeHediff(OrganTraumaDefOf.OrganTrauma_ManipulationPenalty, pawn);
+            pawn.health.AddHediff(hediff);
             if (fractionLost >= 0.81f) return penalties[3]; // Critical: 81-100%
             if (fractionLost >= 0.61f) return penalties[2]; // Severe:   61-80%
             if (fractionLost >= 0.41f) return penalties[1]; // Moderate: 41-60%
             if (fractionLost >= 0.21f) return penalties[0]; // Minor:    21-40%
             return 0f;                                       // <21%: no penalty
-        }
-    }
+}
+}
 }
