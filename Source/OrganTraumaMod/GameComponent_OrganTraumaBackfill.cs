@@ -9,10 +9,11 @@ namespace OrganTraumaMod
     /// RimWorld auto-instantiates one instance of every non-abstract
     /// GameComponent subclass on new/loaded games - no XML registration
     /// needed. This one periodically scans every humanlike pawn, works out
-    /// their current total Manipulation penalty from tiered organ damage,
-    /// and adds/updates/removes a plain vanilla Hediff (OrganTrauma_ManipulationPenalty)
-    /// to reflect it - purely via Severity and the def's own XML stages, no
-    /// custom Hediff subclass or overrides required.
+    /// their current total Manipulation penalty from tiered organ damage
+    /// (only for organs that are currently bleeding), and adds/updates/removes
+    /// a plain vanilla Hediff (OrganTrauma_ManipulationPenalty) to reflect it -
+    /// purely via Severity and the def's own XML stages, no custom Hediff
+    /// subclass or overrides required.
     /// </summary>
     public class GameComponent_OrganTraumaBackfill : GameComponent
     {
@@ -116,6 +117,10 @@ namespace OrganTraumaMod
                 if (!OrganTiers.TryGetValue(part.def.defName, out tier))
                     continue;
 
+                // Only count organs that are actively bleeding right now.
+                if (!IsPartBleeding(pawn, part))
+                    continue;
+
                 float maxHealth = part.def.GetMaxHealth(pawn);
                 if (maxHealth <= 0f)
                     continue;
@@ -127,6 +132,18 @@ namespace OrganTraumaMod
             }
 
             return total;
+        }
+
+        private static bool IsPartBleeding(Pawn pawn, BodyPartRecord part)
+        {
+            List<Hediff> hediffs = pawn.health.hediffSet.hediffs;
+            for (int i = 0; i < hediffs.Count; i++)
+            {
+                Hediff h = hediffs[i];
+                if (h.Part == part && h.Bleeding)
+                    return true;
+            }
+            return false;
         }
 
         private static float GetPenaltyForFractionLost(int tier, float fractionLost)
