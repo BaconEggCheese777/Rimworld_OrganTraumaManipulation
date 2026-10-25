@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Organ Trauma Manipulation</name>
+  <author>You</author>
+  <packageId>you.organtraumamanipulation</packageId>
+  <supportedVersions>
+    <li>1.5</li>
+  </supportedVersions>
+  <description>Damage to vital organs (brain, heart, liver, kidneys, stomach, lungs) reduces Manipulation, scaled by organ tier and how much of the organ's health is lost.</description>
+</ModMetaData>
